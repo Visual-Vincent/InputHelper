@@ -255,6 +255,10 @@ Public NotInheritable Class InputHelper
 #End Region
 
 #Region "Mouse"
+    ''' <summary>
+    ''' A static class for handling and simulating physical mouse input.
+    ''' </summary>
+    ''' <remarks></remarks>
     Public NotInheritable Class Mouse
         Private Sub New()
         End Sub
@@ -278,11 +282,11 @@ Public NotInheritable Class InputHelper
         ''' Virtually sends a mouse button event.
         ''' </summary>
         ''' <param name="Button">The button of the event.</param>
-        ''' <param name="ButtonDown">Whether to push down or release the button.</param>
+        ''' <param name="MouseDown">Whether to push down or release the mouse button.</param>
         ''' <remarks></remarks>
-        Public Shared Sub SetButtonState(ByVal Button As MouseButtons, ByVal ButtonDown As Boolean)
+        Public Shared Sub SetButtonState(ByVal Button As MouseButtons, ByVal MouseDown As Boolean)
             Dim InputList As NativeMethods.INPUT() = _
-                New NativeMethods.INPUT(1 - 1) {Mouse.GetMouseClickInputStructure(Button, ButtonDown)}
+                New NativeMethods.INPUT(1 - 1) {Mouse.GetMouseClickInputStructure(Button, MouseDown)}
             NativeMethods.SendInput(CType(InputList.Length, UInteger), InputList, Marshal.SizeOf(GetType(NativeMethods.INPUT)))
         End Sub
 #End Region
@@ -296,22 +300,22 @@ Public NotInheritable Class InputHelper
         ''' Constructs a native mouse INPUT structure for click events that can be passed to SendInput().
         ''' </summary>
         ''' <param name="Button">The button of the event.</param>
-        ''' <param name="ButtonDown">Whether to push down or release the button.</param>
+        ''' <param name="MouseDown">Whether to push down or release the mouse button.</param>
         ''' <remarks></remarks>
-        Private Shared Function GetMouseClickInputStructure(ByVal Button As MouseButtons, ByVal ButtonDown As Boolean) As NativeMethods.INPUT
+        Private Shared Function GetMouseClickInputStructure(ByVal Button As MouseButtons, ByVal MouseDown As Boolean) As NativeMethods.INPUT
             Dim Position As Point = Cursor.Position
             Dim MouseFlags As NativeMethods.MOUSEEVENTF
             Dim MouseData As UInteger = 0
 
             Select Case Button
-                Case MouseButtons.Left : MouseFlags = If(ButtonDown, NativeMethods.MOUSEEVENTF.LEFTDOWN, NativeMethods.MOUSEEVENTF.LEFTUP)
-                Case MouseButtons.Middle : MouseFlags = If(ButtonDown, NativeMethods.MOUSEEVENTF.MIDDLEDOWN, NativeMethods.MOUSEEVENTF.MIDDLEUP)
-                Case MouseButtons.Right : MouseFlags = If(ButtonDown, NativeMethods.MOUSEEVENTF.RIGHTDOWN, NativeMethods.MOUSEEVENTF.RIGHTUP)
+                Case MouseButtons.Left : MouseFlags = If(MouseDown, NativeMethods.MOUSEEVENTF.LEFTDOWN, NativeMethods.MOUSEEVENTF.LEFTUP)
+                Case MouseButtons.Middle : MouseFlags = If(MouseDown, NativeMethods.MOUSEEVENTF.MIDDLEDOWN, NativeMethods.MOUSEEVENTF.MIDDLEUP)
+                Case MouseButtons.Right : MouseFlags = If(MouseDown, NativeMethods.MOUSEEVENTF.RIGHTDOWN, NativeMethods.MOUSEEVENTF.RIGHTUP)
                 Case MouseButtons.XButton1
-                    MouseFlags = If(ButtonDown, NativeMethods.MOUSEEVENTF.XDOWN, NativeMethods.MOUSEEVENTF.XUP)
+                    MouseFlags = If(MouseDown, NativeMethods.MOUSEEVENTF.XDOWN, NativeMethods.MOUSEEVENTF.XUP)
                     MouseData = NativeMethods.MouseXButton.XBUTTON1
                 Case MouseButtons.XButton2
-                    MouseFlags = If(ButtonDown, NativeMethods.MOUSEEVENTF.XDOWN, NativeMethods.MOUSEEVENTF.XUP)
+                    MouseFlags = If(MouseDown, NativeMethods.MOUSEEVENTF.XDOWN, NativeMethods.MOUSEEVENTF.XUP)
                     MouseData = NativeMethods.MouseXButton.XBUTTON2
                 Case Else
                     Throw New ArgumentException("Invalid mouse button " & Button.ToString() & "!", "Button")
@@ -567,13 +571,26 @@ Public NotInheritable Class InputHelper
         ''' <param name="Location">The position where to send the click (in screen coordinates).</param>
         ''' <remarks></remarks>
         Public Shared Sub SendMouseClick(ByVal Button As MouseButtons, ByVal Location As Point)
+            WindowMessages.SendMouseClick(Button, Location, True, False)
+            WindowMessages.SendMouseClick(Button, Location, False, False)
+        End Sub
+
+        ''' <summary>
+        ''' Sends a Window Message-based mouse click to the window at the specified coordinates of the screen.
+        ''' </summary>
+        ''' <param name="Button">The button to press.</param>
+        ''' <param name="Location">The position where to send the click (in screen coordinates).</param>
+        ''' <param name="MouseDown">Whether to push down or release the mouse button.</param>
+        ''' <param name="SendAsynchronously">Whether or not to wait for the window to handle the message before continuing.</param>
+        ''' <remarks></remarks>
+        Public Shared Sub SendMouseClick(ByVal Button As MouseButtons, ByVal Location As Point, ByVal MouseDown As Boolean, Optional ByVal SendAsynchronously As Boolean = False)
             Dim hWnd As IntPtr = NativeMethods.WindowFromPoint(New NativeMethods.NATIVEPOINT(Location.X, Location.Y)) 'Get the window at the specified click point.
             Dim ButtonMessage As NativeMethods.MouseButtonMessage 'A variable holding which Window Message to use.
 
             Select Case Button 'Set the appropriate mouse button Window Message.
-                Case MouseButtons.Left : ButtonMessage = NativeMethods.MouseButtonMessage.WM_LBUTTONDOWN
-                Case MouseButtons.Right : ButtonMessage = NativeMethods.MouseButtonMessage.WM_RBUTTONDOWN
-                Case MouseButtons.Middle : ButtonMessage = NativeMethods.MouseButtonMessage.WM_MBUTTONDOWN
+                Case MouseButtons.Left : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_LBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_LBUTTONUP)
+                Case MouseButtons.Right : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_RBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_RBUTTONUP)
+                Case MouseButtons.Middle : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_MBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_MBUTTONUP)
                 Case MouseButtons.XButton1, MouseButtons.XButton2
                     ButtonMessage = NativeMethods.MouseButtonMessage.WM_XBUTTONDOWN
                 Case Else
@@ -595,8 +612,7 @@ Public NotInheritable Class InputHelper
                 wParam = WindowMessages.CreateLWParam(0, Button / MouseButtons.XButton1) 'Set the correct XButton.
             End If
 
-            NativeMethods.SendMessage(hWnd, ButtonMessage, wParam, lParam) 'Button down.
-            NativeMethods.SendMessage(hWnd, ButtonMessage + 1, wParam, lParam) 'Button up.
+            InputHelper.WindowMessages.SendMessage(hWnd, ButtonMessage, wParam, lParam, SendAsynchronously)
         End Sub
 #End Region
 
