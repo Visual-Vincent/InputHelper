@@ -286,3 +286,5 @@ __pycache__/
 *.btm.cs
 *.odx.cs
 *.xsd.cs
+InputHelper Library/InputHelper Library/FileVersionAppender.exe
+InputHelper Library/InputHelper Library/PreBuildAction.bat
