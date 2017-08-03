@@ -616,6 +616,45 @@ Public NotInheritable Class InputHelper
         End Sub
 #End Region
 
+#Region "GetActiveWindow()"
+        ''' <summary>
+        ''' Gets the active top-level window.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Shared Function GetActiveWindow() As IntPtr
+            Return NativeMethods.GetForegroundWindow()
+        End Function
+#End Region
+
+#Region "GetAbsoluteActiveWindow()"
+        ''' <summary>
+        ''' Gets the (absolute) active top-level window or child window (apart from GetActiveWindow() which will only get the active top-level window).
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Shared Function GetAbsoluteActiveWindow() As IntPtr
+            Dim CurrentThreadID As UInteger = NativeMethods.GetCurrentThreadId()
+            Dim ActiveWindow As IntPtr = NativeMethods.GetForegroundWindow()
+            Dim ActiveThread As UInteger = NativeMethods.GetWindowThreadProcessId(ActiveWindow, Nothing)
+
+            If ActiveThread = 0 Then _
+                Return ActiveWindow
+
+            If NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, True) = False Then _
+                Return ActiveWindow
+
+            Dim AbsoluteActiveWindow As IntPtr = NativeMethods.GetFocus()
+            Dim DetachAttempts As Integer = 0
+
+            While NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, False) = False
+                DetachAttempts += 1
+                If DetachAttempts >= 10 Then Exit While
+                Threading.Thread.Sleep(1)
+            End While
+
+            Return AbsoluteActiveWindow
+        End Function
+#End Region
+
 #End Region
 
 #Region "Internal methods"
@@ -852,35 +891,6 @@ Public NotInheritable Class InputHelper
                 Return If(KeyDown, NativeMethods.KeyMessage.WM_SYSKEYDOWN, NativeMethods.KeyMessage.WM_SYSKEYUP)
 
             Return If(KeyDown, NativeMethods.KeyMessage.WM_KEYDOWN, NativeMethods.KeyMessage.WM_KEYUP)
-        End Function
-#End Region
-
-#Region "GetAbsoluteActiveWindow()"
-        ''' <summary>
-        ''' Gets the absolute active window or child window.
-        ''' </summary>
-        ''' <remarks></remarks>
-        Private Shared Function GetAbsoluteActiveWindow() As IntPtr
-            Dim CurrentThreadID As UInteger = NativeMethods.GetCurrentThreadId()
-            Dim ActiveWindow As IntPtr = NativeMethods.GetForegroundWindow()
-            Dim ActiveThread As UInteger = NativeMethods.GetWindowThreadProcessId(ActiveWindow, Nothing)
-
-            If ActiveThread = 0 Then _
-                Return ActiveWindow
-
-            If NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, True) = False Then _
-                Return ActiveWindow
-
-            Dim AbsoluteActiveWindow As IntPtr = NativeMethods.GetFocus()
-            Dim DetachAttempts As Integer = 0
-
-            While NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, False) = False
-                DetachAttempts += 1
-                If DetachAttempts >= 10 Then Exit While
-                Threading.Thread.Sleep(1)
-            End While
-
-            Return AbsoluteActiveWindow
         End Function
 #End Region
 
