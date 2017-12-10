@@ -9,7 +9,7 @@
     </SchemaVersion>
     <ProjectGuid>{F29BA8AA-4C2E-48AD-8184-7D8A5FCA96A1}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>InputHelperLibrary</RootNamespace>
+    <RootNamespace>InputHelperLib</RootNamespace>
     <AssemblyName>InputHelper</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Windows</MyType>
