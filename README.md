@@ -1,5 +1,5 @@
 # InputHelper
-A .NET friendly library for simulating mouse and keyboard input.
+A .NET friendly library for handling, simulating and intercepting mouse and keyboard input.
 
 # Documentation
 See the project's [Wiki page](https://github.com/Visual-Vincent/InputHelper/wiki).
