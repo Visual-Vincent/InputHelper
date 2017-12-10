@@ -35,6 +35,8 @@ Imports System.Runtime.InteropServices
 Imports System.Windows.Forms
 Imports System.Drawing
 Imports System.Text
+Imports System.Reflection
+Imports System.ComponentModel
 
 ''' <summary>
 ''' A static class for handling and simulating mouse and keyboard input.
@@ -130,14 +132,575 @@ Public NotInheritable Class InputHelper
 #End Region
 
 #Region "Enumerations"
-    Public Enum ModifierKey As Integer
-        Control = 0
-        Shift
-        Alt
+    <Flags()> _
+    Public Enum ModifierKeys As Integer
+        ''' <summary>
+        ''' No modifiers specified.
+        ''' </summary>
+        ''' <remarks></remarks>
+        None = 0
+
+        ''' <summary>
+        ''' The CTRL modifier key.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Control = 1
+
+        ''' <summary>
+        ''' The SHIFT modifier key.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Shift = 2
+
+        ''' <summary>
+        ''' The ALT modifier key.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Alt = 4
+
+        ''' <summary>
+        ''' The Windows modifier key.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Windows = 8
     End Enum
 #End Region
 
 #Region "Subclasses"
+
+#Region "Hooks"
+    ''' <summary>
+    ''' A static class for dealing with mouse and keyboard hooks.
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public NotInheritable Class Hooks
+        Private Sub New()
+        End Sub
+
+#Region "EventArgs"
+        Public Class KeyboardHookEventArgs
+            Inherits EventArgs
+
+            Private _extended As Boolean
+            Private _keyCode As Keys
+            Private _keyState As KeyState
+            Private _modifiers As ModifierKeys
+            Private _scanCode As UInteger
+
+            ''' <summary>
+            ''' Gets or sets a boolean value indicating whether the keystroke should be blocked from reaching any windows.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Property Block As Boolean = False
+
+            ''' <summary>
+            ''' Gets a boolean value indicating whether the keystroke message originated from one of the additional keys on the enhanced keyboard 
+            ''' (see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms646267(v=vs.85).aspx#_win32_Keystroke_Message_Flags).
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property Extended As Boolean
+                Get
+                    Return _extended
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the keyboard code of the key that generated the keystroke.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property KeyCode As Keys
+                Get
+                    Return _keyCode
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the current state of the key that generated the keystroke.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property KeyState As KeyState
+                Get
+                    Return _keyState
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the modifier keys that was pressed in combination with the keystroke.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property Modifiers As ModifierKeys
+                Get
+                    Return _modifiers
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the hardware scan code of the key that generated the keystroke.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property ScanCode As UInteger
+                Get
+                    Return _scanCode
+                End Get
+            End Property
+
+            Public Overrides Function ToString() As String
+                Return String.Format("{{KeyCode: {0}, ScanCode: {1}, Extended: {2}, KeyState: {3}, Modifiers: {4}}}", _
+                                     Me.KeyCode, Me.ScanCode, Me.Extended, Me.KeyState, Me.Modifiers)
+            End Function
+
+            ''' <summary>
+            ''' Initializes a new instance of the KeyboardHookEventArgs class.
+            ''' </summary>
+            ''' <param name="KeyCode">The keyboard code of the key that generated the keystroke.</param>
+            ''' <param name="ScanCode">The hardware scan code of the key that generated the keystroke.</param>
+            ''' <param name="Extended">Whether the keystroke message originated from one of the additional keys on the enhanced keyboard 
+            ''' (see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms646267(v=vs.85).aspx#_win32_Keystroke_Message_Flags). </param>
+            ''' <param name="KeyState">The current state of the key that generated the keystroke.</param>
+            ''' <param name="Modifiers">The modifier keys that was pressed in combination with the keystroke.</param>
+            ''' <remarks></remarks>
+            Public Sub New(ByVal KeyCode As Keys, _
+                           ByVal ScanCode As UInteger, _
+                           ByVal Extended As Boolean, _
+                           ByVal KeyState As KeyState, _
+                           ByVal Modifiers As ModifierKeys)
+                Me._keyCode = KeyCode
+                Me._scanCode = ScanCode
+                Me._extended = Extended
+                Me._keyState = KeyState
+                Me._modifiers = Modifiers
+            End Sub
+        End Class
+
+        Public Class MouseHookEventArgs
+            Inherits EventArgs
+
+            Private _button As MouseButtons
+            Private _buttonState As KeyState
+            Private _delta As Integer
+            Private _doubleClick As Boolean
+            Private _location As Point
+            Private _scrollDirection As ScrollDirection
+
+            ''' <summary>
+            ''' Gets or sets a boolean value indicating whether the mouse event should be blocked from reaching any windows.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Property Block As Boolean = False
+
+            ''' <summary>
+            ''' Gets which mouse button was pressed or released.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property Button As MouseButtons
+                Get
+                    Return _button
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the current state of the button that generated the mouse event.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property ButtonState As KeyState
+                Get
+                    Return _buttonState
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets a signed count of the number of detents the mouse wheel has rotated. A detent is one notch of the mouse wheel.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property Delta As Integer
+                Get
+                    Return _delta
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets a boolean value indicating whether the event was caused by a double click.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property DoubleClick As Boolean
+                Get
+                    Return _doubleClick
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets the location of the mouse (in screen coordinates).
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property Location As Point
+                Get
+                    Return _location
+                End Get
+            End Property
+
+            ''' <summary>
+            ''' Gets which direction the mouse wheel was scrolled in.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public ReadOnly Property ScrollDirection As ScrollDirection
+                Get
+                    Return _scrollDirection
+                End Get
+            End Property
+
+            Public Overrides Function ToString() As String
+                Return String.Format("{{Button: {0}, State: {1}, DoubleClick: {2}, Location: {3}, Scroll: {4}, Delta: {5}}}", _
+                                     Me.Button, Me.ButtonState, Me.DoubleClick, Me.Location, Me.ScrollDirection, Me.Delta)
+            End Function
+
+            ''' <summary>
+            ''' Initializes a new instance of the MouseHookEventArgs class.
+            ''' </summary>
+            ''' <param name="Button">Which mouse button was pressed or released.</param>
+            ''' <param name="ButtonState">The current state of the button that generated the mouse event.</param>
+            ''' <param name="DoubleClick">Whether the event was caused by a double click.</param>
+            ''' <param name="Location">The location of the mouse (in screen coordinates).</param>
+            ''' <param name="ScrollDirection">Which direction the mouse wheel was scrolled in.</param>
+            ''' <param name="Delta">A signed count of the number of detents the mouse wheel has rotated.</param>
+            ''' <remarks></remarks>
+            Public Sub New(ByVal Button As MouseButtons, _
+                           ByVal ButtonState As KeyState, _
+                           ByVal DoubleClick As Boolean, _
+                           ByVal Location As Point, _
+                           ByVal ScrollDirection As ScrollDirection, _
+                           ByVal Delta As Integer)
+                Me._button = Button
+                Me._buttonState = ButtonState
+                Me._doubleClick = DoubleClick
+                Me._location = Location
+                Me._scrollDirection = ScrollDirection
+                Me._delta = Delta
+            End Sub
+        End Class
+#End Region
+
+#Region "Keyboard hook"
+        ''' <summary>
+        ''' A global low-level keyboard hook that raises events when a key is pressed or released.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Class KeyboardHook
+            Implements IDisposable
+
+            ''' <summary>
+            ''' Occurs when a key is pressed or held down.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event KeyDown As EventHandler(Of KeyboardHookEventArgs)
+
+            ''' <summary>
+            ''' Occurs when a key is released.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event KeyUp As EventHandler(Of KeyboardHookEventArgs)
+
+            Private hHook As IntPtr = IntPtr.Zero
+            Private HookProcedureDelegate As New NativeMethods.LowLevelKeyboardProc(AddressOf HookCallback)
+
+            Private Modifiers As ModifierKeys = ModifierKeys.None
+
+            Private Function HookCallback(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+                Dim Block As Boolean = False
+
+                If nCode >= NativeMethods.HookCode.HC_ACTION AndAlso _
+                    (wParam = NativeMethods.KeyMessage.WM_KEYDOWN OrElse _
+                     wParam = NativeMethods.KeyMessage.WM_KEYUP OrElse _
+                     wParam = NativeMethods.KeyMessage.WM_SYSKEYDOWN OrElse _
+                     wParam = NativeMethods.KeyMessage.WM_SYSKEYUP) Then
+
+                    Dim KeystrokeInfo As NativeMethods.KBDLLHOOKSTRUCT = _
+                        CType(Marshal.PtrToStructure(lParam, GetType(NativeMethods.KBDLLHOOKSTRUCT)), NativeMethods.KBDLLHOOKSTRUCT)
+
+                    Select Case wParam
+
+                        Case NativeMethods.KeyMessage.WM_KEYDOWN, NativeMethods.KeyMessage.WM_SYSKEYDOWN
+                            Dim HookEventArgs As KeyboardHookEventArgs = Me.CreateEventArgs(True, KeystrokeInfo)
+
+                            If InputHelper.IsModifier(HookEventArgs.KeyCode, ModifierKeys.Control) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Control
+                            If InputHelper.IsModifier(HookEventArgs.KeyCode, ModifierKeys.Shift) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Shift
+                            If InputHelper.IsModifier(HookEventArgs.KeyCode, ModifierKeys.Alt) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Alt
+                            If InputHelper.IsModifier(HookEventArgs.KeyCode, ModifierKeys.Windows) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Windows
+
+                            RaiseEvent KeyDown(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+                        Case NativeMethods.KeyMessage.WM_KEYUP, NativeMethods.KeyMessage.WM_SYSKEYUP
+                            Dim KeyCode As Keys = CType(KeystrokeInfo.vkCode And Integer.MaxValue, Keys)
+
+                            'Must be done before creating the HookEventArgs during KeyUp.
+                            If InputHelper.IsModifier(KeyCode, ModifierKeys.Control) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Control
+                            If InputHelper.IsModifier(KeyCode, ModifierKeys.Shift) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Shift
+                            If InputHelper.IsModifier(KeyCode, ModifierKeys.Alt) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Alt
+                            If InputHelper.IsModifier(KeyCode, ModifierKeys.Windows) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Windows
+
+                            Dim HookEventArgs As KeyboardHookEventArgs = Me.CreateEventArgs(False, KeystrokeInfo)
+
+                            RaiseEvent KeyUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+                    End Select
+                End If
+
+                Return If(Block, New IntPtr(1), NativeMethods.CallNextHookEx(hHook, nCode, wParam, lParam))
+            End Function
+
+            Private Function CreateEventArgs(ByVal KeyDown As Boolean, ByVal KeystrokeInfo As NativeMethods.KBDLLHOOKSTRUCT) As KeyboardHookEventArgs
+                Dim KeyCode As Keys = CType(KeystrokeInfo.vkCode And Integer.MaxValue, Keys)
+                Dim ScanCode As UInteger = KeystrokeInfo.scanCode
+                Dim Extended As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_EXTENDED) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_EXTENDED
+                Dim AltDown As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_ALTDOWN) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_ALTDOWN
+
+                If AltDown = True _
+                    AndAlso InputHelper.IsModifier(KeyCode, ModifierKeys.Alt) = False _
+                     AndAlso (Me.Modifiers And ModifierKeys.Alt) <> ModifierKeys.Alt Then
+
+                    Me.Modifiers = Me.Modifiers Or ModifierKeys.Alt
+                End If
+
+                Return New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, If(KeyDown, KeyState.Down, KeyState.Up), Me.Modifiers)
+            End Function
+
+            Public Sub New()
+                hHook = NativeMethods.SetWindowsHookEx(NativeMethods.HookType.WH_KEYBOARD_LL, HookProcedureDelegate, NativeMethods.GetModuleHandle(Nothing), 0)
+                If hHook = IntPtr.Zero Then
+                    Dim Win32Error As Integer = Marshal.GetLastWin32Error()
+                    Throw New Win32Exception(Win32Error, "Failed to create keyboard hook! (" & Win32Error & ")")
+                End If
+            End Sub
+
+#Region "IDisposable Support"
+            Private disposedValue As Boolean ' To detect redundant calls
+
+            ' IDisposable
+            Protected Overridable Sub Dispose(disposing As Boolean)
+                If Not Me.disposedValue Then
+                    If disposing Then
+                        ' TODO: dispose managed state (managed objects).
+                    End If
+
+                    ' TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
+                    ' TODO: set large fields to null.
+                    If hHook <> IntPtr.Zero Then NativeMethods.UnhookWindowsHookEx(hHook)
+                End If
+                Me.disposedValue = True
+            End Sub
+
+            Protected Overrides Sub Finalize()
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(False)
+                MyBase.Finalize()
+            End Sub
+
+            ' This code added by Visual Basic to correctly implement the disposable pattern.
+            Public Sub Dispose() Implements IDisposable.Dispose
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(True)
+                GC.SuppressFinalize(Me)
+            End Sub
+#End Region
+
+        End Class
+#End Region
+
+#Region "Mouse hook"
+        ''' <summary>
+        ''' A global low-level mouse hook that raises events when a mouse event occurs.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Class MouseHook
+            Implements IDisposable
+
+            ''' <summary>
+            ''' Occurs when a mouse button is pressed or held down.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event MouseDown As EventHandler(Of MouseHookEventArgs)
+
+            ''' <summary>
+            ''' Occurs when a mouse button is released.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event MouseUp As EventHandler(Of MouseHookEventArgs)
+
+            ''' <summary>
+            ''' Occurs when the mouse moves.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event MouseMove As EventHandler(Of MouseHookEventArgs)
+
+            ''' <summary>
+            ''' Occurs when the mouse wheel is scrolled.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event MouseWheel As EventHandler(Of MouseHookEventArgs)
+
+            Private hHook As IntPtr = IntPtr.Zero
+            Private HookProcedureDelegate As New NativeMethods.LowLevelMouseProc(AddressOf HookCallback)
+
+            Private LeftClickTimeStamp As Integer = 0
+            Private MiddleClickTimeStamp As Integer = 0
+            Private RightClickTimeStamp As Integer = 0
+
+            Private Function HookCallback(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+                Dim Block As Boolean = False
+
+                If nCode >= NativeMethods.HookCode.HC_ACTION AndAlso _
+                    (wParam = NativeMethods.MouseMessage.WM_LBUTTONDOWN OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_LBUTTONUP OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_MBUTTONDOWN OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_MBUTTONUP OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_RBUTTONDOWN OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_RBUTTONUP OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_MOUSEWHEEL OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_MOUSEHWHEEL OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_MOUSEMOVE) Then
+
+                    Dim MouseEventInfo As NativeMethods.MSLLHOOKSTRUCT = _
+                        CType(Marshal.PtrToStructure(lParam, GetType(NativeMethods.MSLLHOOKSTRUCT)), NativeMethods.MSLLHOOKSTRUCT)
+
+                    Select Case wParam
+                        Case NativeMethods.MouseMessage.WM_LBUTTONDOWN
+                            Dim DoubleClick As Boolean = (Environment.TickCount - LeftClickTimeStamp) <= NativeMethods.GetDoubleClickTime()
+                            LeftClickTimeStamp = Environment.TickCount
+
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Left, KeyState.Down, DoubleClick, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseDown(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_LBUTTONUP
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Left, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_MBUTTONDOWN
+                            Dim DoubleClick As Boolean = (Environment.TickCount - MiddleClickTimeStamp) <= NativeMethods.GetDoubleClickTime()
+                            MiddleClickTimeStamp = Environment.TickCount
+
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Middle, KeyState.Down, DoubleClick, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseDown(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_MBUTTONUP
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Middle, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_RBUTTONDOWN
+                            Dim DoubleClick As Boolean = (Environment.TickCount - RightClickTimeStamp) <= NativeMethods.GetDoubleClickTime()
+                            RightClickTimeStamp = Environment.TickCount
+
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Right, KeyState.Down, DoubleClick, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseDown(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_RBUTTONUP
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Right, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_MOUSEWHEEL
+                            Dim Delta As Integer = New NativeMethods.SignedDWORD(MouseEventInfo.mouseData).High
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Vertical, Delta)
+                            RaiseEvent MouseWheel(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_MOUSEHWHEEL
+                            Dim Delta As Integer = New NativeMethods.SignedDWORD(MouseEventInfo.mouseData).High
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Horizontal, Delta)
+                            RaiseEvent MouseWheel(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_MOUSEMOVE
+                            Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseMove(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                    End Select
+                End If
+
+                Return If(Block, New IntPtr(1), NativeMethods.CallNextHookEx(hHook, nCode, wParam, lParam))
+            End Function
+
+            Public Sub New()
+                hHook = NativeMethods.SetWindowsHookEx(NativeMethods.HookType.WH_MOUSE_LL, HookProcedureDelegate, NativeMethods.GetModuleHandle(Nothing), 0)
+                If hHook = IntPtr.Zero Then
+                    Dim Win32Error As Integer = Marshal.GetLastWin32Error()
+                    Throw New Win32Exception(Win32Error, "Failed to create mouse hook! (" & Win32Error & ")")
+                End If
+            End Sub
+
+#Region "IDisposable Support"
+            Private disposedValue As Boolean ' To detect redundant calls
+
+            ' IDisposable
+            Protected Overridable Sub Dispose(disposing As Boolean)
+                If Not Me.disposedValue Then
+                    If disposing Then
+                        ' TODO: dispose managed state (managed objects).
+                    End If
+
+                    ' TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
+                    ' TODO: set large fields to null.
+                    If hHook <> IntPtr.Zero Then NativeMethods.UnhookWindowsHookEx(hHook)
+                End If
+                Me.disposedValue = True
+            End Sub
+
+            Protected Overrides Sub Finalize()
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(False)
+                MyBase.Finalize()
+            End Sub
+
+            ' This code added by Visual Basic to correctly implement the disposable pattern.
+            Public Sub Dispose() Implements IDisposable.Dispose
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(True)
+                GC.SuppressFinalize(Me)
+            End Sub
+#End Region
+
+        End Class
+#End Region
+
+#Region "Enumerations"
+        Public Enum KeyState As Integer
+            Up = 0
+            Down = 1
+        End Enum
+
+        Public Enum ScrollDirection As Integer
+            None = 0
+            Vertical = 1
+            Horizontal = 2
+        End Enum
+#End Region
+
+    End Class
+#End Region
 
 #Region "Keyboard"
     ''' <summary>
@@ -544,20 +1107,23 @@ Public NotInheritable Class InputHelper
         ''' </summary>
         ''' <param name="Modifier">The modifier to check.</param>
         ''' <remarks></remarks>
-        Public Shared Function IsModifierDown(ByVal Modifier As ModifierKey) As Boolean
+        Public Shared Function IsModifierDown(ByVal Modifier As ModifierKeys) As Boolean
             Select Case Modifier
-                Case ModifierKey.Control
+                Case ModifierKeys.Control
                     Return WindowMessages.IsKeyDown(Keys.ControlKey) OrElse _
                            WindowMessages.IsKeyDown(Keys.LControlKey) OrElse _
                            WindowMessages.IsKeyDown(Keys.RControlKey)
-                Case ModifierKey.Shift
+                Case ModifierKeys.Shift
                     Return WindowMessages.IsKeyDown(Keys.ShiftKey) OrElse _
                            WindowMessages.IsKeyDown(Keys.LShiftKey) OrElse _
                            WindowMessages.IsKeyDown(Keys.RShiftKey)
-                Case ModifierKey.Alt
+                Case ModifierKeys.Alt
                     Return WindowMessages.IsKeyDown(Keys.Menu) OrElse _
                            WindowMessages.IsKeyDown(Keys.LMenu) OrElse _
                            WindowMessages.IsKeyDown(Keys.RMenu)
+                Case ModifierKeys.Windows
+                    Return WindowMessages.IsKeyDown(Keys.LWin) OrElse _
+                           WindowMessages.IsKeyDown(Keys.RWin)
             End Select
             Throw New ArgumentOutOfRangeException("Modifier", CType(Modifier, Integer) & " is not a valid modifier key!")
         End Function
@@ -585,14 +1151,14 @@ Public NotInheritable Class InputHelper
         ''' <remarks></remarks>
         Public Shared Sub SendMouseClick(ByVal Button As MouseButtons, ByVal Location As Point, ByVal MouseDown As Boolean, Optional ByVal SendAsynchronously As Boolean = False)
             Dim hWnd As IntPtr = NativeMethods.WindowFromPoint(New NativeMethods.NATIVEPOINT(Location.X, Location.Y)) 'Get the window at the specified click point.
-            Dim ButtonMessage As NativeMethods.MouseButtonMessage 'A variable holding which Window Message to use.
+            Dim ButtonMessage As NativeMethods.MouseMessage 'A variable holding which Window Message to use.
 
             Select Case Button 'Set the appropriate mouse button Window Message.
-                Case MouseButtons.Left : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_LBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_LBUTTONUP)
-                Case MouseButtons.Right : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_RBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_RBUTTONUP)
-                Case MouseButtons.Middle : ButtonMessage = If(MouseDown, NativeMethods.MouseButtonMessage.WM_MBUTTONDOWN, NativeMethods.MouseButtonMessage.WM_MBUTTONUP)
+                Case MouseButtons.Left : ButtonMessage = If(MouseDown, NativeMethods.MouseMessage.WM_LBUTTONDOWN, NativeMethods.MouseMessage.WM_LBUTTONUP)
+                Case MouseButtons.Right : ButtonMessage = If(MouseDown, NativeMethods.MouseMessage.WM_RBUTTONDOWN, NativeMethods.MouseMessage.WM_RBUTTONUP)
+                Case MouseButtons.Middle : ButtonMessage = If(MouseDown, NativeMethods.MouseMessage.WM_MBUTTONDOWN, NativeMethods.MouseMessage.WM_MBUTTONUP)
                 Case MouseButtons.XButton1, MouseButtons.XButton2
-                    ButtonMessage = NativeMethods.MouseButtonMessage.WM_XBUTTONDOWN
+                    ButtonMessage = NativeMethods.MouseMessage.WM_XBUTTONDOWN
                 Case Else
                     Throw New ArgumentException("Invalid mouse button " & Button.ToString() & "!", "Button")
             End Select
@@ -605,15 +1171,54 @@ Public NotInheritable Class InputHelper
             End If
 
             Dim wParam As IntPtr = IntPtr.Zero 'Used to specify which X button was clicked (if any).
-            Dim lParam As IntPtr = WindowMessages.CreateLWParam(ClickPoint.X, ClickPoint.Y) 'Click point.
+            Dim lParam As IntPtr = New NativeMethods.DWORD(ClickPoint.x, ClickPoint.y) 'Click point.
 
             If Button = MouseButtons.XButton1 OrElse _
                 Button = MouseButtons.XButton2 Then
-                wParam = WindowMessages.CreateLWParam(0, Button / MouseButtons.XButton1) 'Set the correct XButton.
+                wParam = New NativeMethods.DWORD(0, Button / MouseButtons.XButton1) 'Set the correct XButton.
             End If
 
             InputHelper.WindowMessages.SendMessage(hWnd, ButtonMessage, wParam, lParam, SendAsynchronously)
         End Sub
+#End Region
+
+#Region "GetActiveWindow()"
+        ''' <summary>
+        ''' Gets the active top-level window.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Shared Function GetActiveWindow() As IntPtr
+            Return NativeMethods.GetForegroundWindow()
+        End Function
+#End Region
+
+#Region "GetAbsoluteActiveWindow()"
+        ''' <summary>
+        ''' Gets the (absolute) active top-level window or child window (apart from GetActiveWindow() which will only get the active top-level window).
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Shared Function GetAbsoluteActiveWindow() As IntPtr
+            Dim CurrentThreadID As UInteger = NativeMethods.GetCurrentThreadId()
+            Dim ActiveWindow As IntPtr = NativeMethods.GetForegroundWindow()
+            Dim ActiveThread As UInteger = NativeMethods.GetWindowThreadProcessId(ActiveWindow, Nothing)
+
+            If ActiveThread = 0 Then _
+                Return ActiveWindow
+
+            If NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, True) = False Then _
+                Return ActiveWindow
+
+            Dim AbsoluteActiveWindow As IntPtr = NativeMethods.GetFocus()
+            Dim DetachAttempts As Integer = 0
+
+            While NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, False) = False
+                DetachAttempts += 1
+                If DetachAttempts >= 10 Then Exit While
+                Threading.Thread.Sleep(1)
+            End While
+
+            Return AbsoluteActiveWindow
+        End Function
 #End Region
 
 #End Region
@@ -642,8 +1247,8 @@ Public NotInheritable Class InputHelper
             Dim CharacterConversionResult As Integer = -1
 
             Dim IsDeadChar As Boolean = (CharCode And (1 << 31)) = (CType(1, UInteger) << 31) 'If the most significant bit is set the key is a dead char.
-            Dim IsAltDown As Boolean = WindowMessages.IsModifierDown(ModifierKey.Alt)
-            Dim IsAlt As Boolean = InputHelper.IsModifier(Key, ModifierKey.Alt)
+            Dim IsAltDown As Boolean = WindowMessages.IsModifierDown(ModifierKeys.Alt)
+            Dim IsAlt As Boolean = InputHelper.IsModifier(Key, ModifierKeys.Alt)
             Dim AltUp As Boolean = (IsAlt = True AndAlso IsAltDown = True AndAlso KeyDown = False)
             Dim IsNumpadNumber As Boolean = (KeyCode >= CType(Keys.NumPad0, UInteger) AndAlso KeyCode <= CType(Keys.NumPad9, UInteger))
 
@@ -855,47 +1460,6 @@ Public NotInheritable Class InputHelper
         End Function
 #End Region
 
-#Region "GetAbsoluteActiveWindow()"
-        ''' <summary>
-        ''' Gets the absolute active window or child window.
-        ''' </summary>
-        ''' <remarks></remarks>
-        Private Shared Function GetAbsoluteActiveWindow() As IntPtr
-            Dim CurrentThreadID As UInteger = NativeMethods.GetCurrentThreadId()
-            Dim ActiveWindow As IntPtr = NativeMethods.GetForegroundWindow()
-            Dim ActiveThread As UInteger = NativeMethods.GetWindowThreadProcessId(ActiveWindow, Nothing)
-
-            If ActiveThread = 0 Then _
-                Return ActiveWindow
-
-            If NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, True) = False Then _
-                Return ActiveWindow
-
-            Dim AbsoluteActiveWindow As IntPtr = NativeMethods.GetFocus()
-            Dim DetachAttempts As Integer = 0
-
-            While NativeMethods.AttachThreadInput(CurrentThreadID, ActiveThread, False) = False
-                DetachAttempts += 1
-                If DetachAttempts >= 10 Then Exit While
-                Threading.Thread.Sleep(1)
-            End While
-
-            Return AbsoluteActiveWindow
-        End Function
-#End Region
-
-#Region "CreateLWParam()"
-        ''' <summary>
-        ''' Creates a wParam or lParam value.
-        ''' </summary>
-        ''' <param name="LoWord">The low word (UShort) of the lParam/wParam.</param>
-        ''' <param name="HiWord">The high word (UShort) of the lParam/wParam.</param>
-        ''' <remarks></remarks>
-        Private Shared Function CreateLWParam(ByVal LoWord As Integer, ByVal HiWord As Integer) As IntPtr
-            Return New IntPtr((HiWord << 16) Or (LoWord And &HFFFF))
-        End Function
-#End Region
-
 #End Region
 
     End Class
@@ -940,26 +1504,32 @@ Public NotInheritable Class InputHelper
     ''' <param name="Key">The key to check.</param>
     ''' <param name="Modifier">The modifier to check for.</param>
     ''' <remarks></remarks>
-    Private Shared Function IsModifier(ByVal Key As Keys, ByVal Modifier As ModifierKey) As Boolean
+    Private Shared Function IsModifier(ByVal Key As Keys, ByVal Modifier As ModifierKeys) As Boolean
         Select Case Modifier
-            Case ModifierKey.Control
+            Case ModifierKeys.Control
                 Return _
                     Key = Keys.Control OrElse _
                     Key = Keys.ControlKey OrElse _
                     Key = Keys.LControlKey OrElse _
                     Key = Keys.RControlKey
-            Case ModifierKey.Shift
+            Case ModifierKeys.Shift
                 Return _
                     Key = Keys.Shift OrElse _
                     Key = Keys.ShiftKey OrElse _
                     Key = Keys.LShiftKey OrElse _
                     Key = Keys.RShiftKey
+            Case ModifierKeys.Alt
+                Return _
+                    Key = Keys.Alt OrElse _
+                    Key = Keys.Menu OrElse _
+                    Key = Keys.LMenu OrElse _
+                    Key = Keys.RMenu
+            Case ModifierKeys.Windows
+                Return _
+                    Key = Keys.LWin OrElse _
+                    Key = Keys.RWin
         End Select
-        Return _
-            Key = Keys.Alt OrElse _
-            Key = Keys.Menu OrElse _
-            Key = Keys.LMenu OrElse _
-            Key = Keys.RMenu
+        Throw New ArgumentOutOfRangeException("Modifier", CType(Modifier, Integer) & " is not a valid modifier key!")
     End Function
 #End Region
 
@@ -970,7 +1540,30 @@ Public NotInheritable Class InputHelper
         Private Sub New()
         End Sub
 
+#Region "Delegates"
+        Public Delegate Function LowLevelKeyboardProc(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+        Public Delegate Function LowLevelMouseProc(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+#End Region
+
 #Region "Methods"
+
+#Region "Hook methods"
+        <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
+        Public Shared Function SetWindowsHookEx(ByVal idHook As HookType, ByVal lpfn As LowLevelKeyboardProc, ByVal hMod As IntPtr, ByVal dwThreadId As UInteger) As IntPtr
+        End Function
+
+        <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
+        Public Shared Function SetWindowsHookEx(ByVal idHook As HookType, ByVal lpfn As LowLevelMouseProc, ByVal hMod As IntPtr, ByVal dwThreadId As UInteger) As IntPtr
+        End Function
+
+        <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
+        Public Shared Function UnhookWindowsHookEx(ByVal hhk As IntPtr) As <MarshalAs(UnmanagedType.Bool)> Boolean
+        End Function
+
+        <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
+        Public Shared Function CallNextHookEx(ByVal hhk As IntPtr, ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+        End Function
+#End Region
 
 #Region "Input methods"
         <DllImport("user32.dll", SetLastError:=True)>
@@ -1035,11 +1628,57 @@ Public NotInheritable Class InputHelper
         <DllImport("user32.dll", SetLastError:=True)> _
         Public Shared Function ScreenToClient(ByVal hWnd As IntPtr, ByRef lpPoint As NATIVEPOINT) As Boolean
         End Function
+
+        <DllImport("kernel32.dll", CharSet:=CharSet.Auto, SetLastError:=True)>
+        Public Shared Function GetModuleHandle(ByVal lpModuleName As String) As IntPtr
+        End Function
+#End Region
+
+#Region "System information methods"
+        <DllImport("user32.dll", SetLastError:=True)> _
+        Public Shared Function GetDoubleClickTime() As UInteger
+        End Function
 #End Region
 
 #End Region
 
 #Region "Enumerations"
+        Public Enum HookType As Integer
+            WH_CALLWNDPROC = 4
+            WH_CALLWNDPROCRET = 12
+            WH_CBT = 5
+            WH_DEBUG = 9
+            WH_FOREGROUNDIDLE = 11
+            WH_GETMESSAGE = 3
+            WH_JOURNALPLAYBACK = 1
+            WH_JOURNALRECORD = 0
+            WH_KEYBOARD = 2
+            WH_KEYBOARD_LL = 13
+            WH_MOUSE = 7
+            WH_MOUSE_LL = 14
+            WH_MSGFILTER = -1
+            WH_SHELL = 10
+            WH_SYSMSGFILTER = 6
+        End Enum
+
+        Public Enum HookCode As Integer
+            HC_ACTION = 0
+            HC_NOREMOVE = 3
+        End Enum
+
+        Public Enum LowLevelKeyboardHookFlags As UInteger
+            LLKHF_EXTENDED = &H1
+            LLKHF_LOWER_IL_INJECTED = &H2
+            LLKHF_INJECTED = &H10
+            LLKHF_ALTDOWN = &H20
+            LLKHF_UP = &H80
+        End Enum
+
+        Public Enum LowLevelMouseHookFlags As UInteger
+            LLMHF_INJECTED = &H1
+            LLMHF_LOWER_IL_INJECTED = &H2
+        End Enum
+
         Public Enum INPUTTYPE As UInteger
             MOUSE = 0
             KEYBOARD = 1
@@ -1177,21 +1816,92 @@ Public NotInheritable Class InputHelper
             WM_UNICHAR = &H109
         End Enum
 
-        Public Enum MouseButtonMessage As Integer
+        Public Enum MouseMessage As Integer
+            WM_MOUSEMOVE = &H200
             WM_LBUTTONDOWN = &H201
             WM_LBUTTONUP = &H202
+            WM_LBUTTONDBLCLK = &H203
             WM_MBUTTONDOWN = &H207
             WM_MBUTTONUP = &H208
+            WM_MBUTTONDBLCLK = &H209
             WM_RBUTTONDOWN = &H204
             WM_RBUTTONUP = &H205
+            WM_RBUTTONDBLCLK = &H206
+            WM_MOUSEWHEEL = &H20A
+            WM_MOUSEHWHEEL = &H20E
             WM_XBUTTONDOWN = &H20B
             WM_XBUTTONUP = &H20C
-            XBUTTON1 = &H1
-            XBUTTON2 = &H2
+            WM_XBUTTONDBLCLK = &H20D
         End Enum
 #End Region
 
 #Region "Structures"
+        <StructLayout(LayoutKind.Sequential)> _
+        Public Structure KBDLLHOOKSTRUCT
+            Public vkCode As UInteger
+            Public scanCode As UInteger
+            Public flags As LowLevelKeyboardHookFlags
+            Public time As UInteger
+            Public dwExtraInfo As UIntPtr
+        End Structure
+
+        <StructLayout(LayoutKind.Sequential)> _
+        Public Structure MSLLHOOKSTRUCT
+            Public pt As NATIVEPOINT
+            Public mouseData As UInteger
+            Public flags As UInteger
+            Public time As UInteger
+            Public dwExtraInfo As UIntPtr
+        End Structure
+
+        <StructLayout(LayoutKind.Explicit)>
+        Public Structure DWORD
+            <FieldOffset(0)> Public Value As UInteger
+            <FieldOffset(0)> Public Low As UShort
+            <FieldOffset(2)> Public High As UShort
+
+            Public Shared Widening Operator CType(ByVal DWORD As DWORD) As IntPtr
+                Return New IntPtr(DWORD.Value And Integer.MaxValue)
+            End Operator
+
+            Public Shared Widening Operator CType(ByVal DWORD As DWORD) As UInteger
+                Return DWORD.Value
+            End Operator
+
+            Public Sub New(ByVal Value As UInteger)
+                Me.Value = Value
+            End Sub
+
+            Public Sub New(ByVal Low As UShort, ByVal High As UShort)
+                Me.Low = Low
+                Me.High = High
+            End Sub
+        End Structure
+
+        <StructLayout(LayoutKind.Explicit)>
+        Public Structure SignedDWORD
+            <FieldOffset(0)> Public Value As UInteger
+            <FieldOffset(0)> Public Low As Short
+            <FieldOffset(2)> Public High As Short
+
+            Public Shared Widening Operator CType(ByVal DWORD As SignedDWORD) As IntPtr
+                Return New IntPtr(DWORD.Value And Integer.MaxValue)
+            End Operator
+
+            Public Shared Widening Operator CType(ByVal DWORD As SignedDWORD) As UInteger
+                Return DWORD.Value
+            End Operator
+
+            Public Sub New(ByVal Value As UInteger)
+                Me.Value = Value
+            End Sub
+
+            Public Sub New(ByVal Low As UShort, ByVal High As UShort)
+                Me.Low = Low
+                Me.High = High
+            End Sub
+        End Structure
+
         <StructLayout(LayoutKind.Explicit)> _
         Public Structure INPUTUNION
             <FieldOffset(0)> Public mi As MOUSEINPUT
@@ -1229,8 +1939,8 @@ Public NotInheritable Class InputHelper
 
         <StructLayout(LayoutKind.Sequential)> _
         Public Structure NATIVEPOINT
-            Public X As Integer
-            Public Y As Integer
+            Public x As Integer
+            Public y As Integer
 
             Public Sub New(ByVal X As Integer, ByVal Y As Integer)
                 Me.X = X
