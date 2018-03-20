@@ -7,7 +7,7 @@
 '|                                                                                 |'
 '|                            === COPYRIGHT LICENSE ===                            |'
 '|                                                                                 |'
-'| Copyright (c) 2016-2017, Vincent Bengtsson                                      |'
+'| Copyright (c) 2016-2018, Vincent Bengtsson                                      |'
 '| All rights reserved.                                                            |'
 '|                                                                                 |'
 '| Redistribution and use in source and binary forms, with or without              |'
@@ -545,6 +545,8 @@ Public NotInheritable Class InputHelper
             Private LeftClickTimeStamp As Integer = 0
             Private MiddleClickTimeStamp As Integer = 0
             Private RightClickTimeStamp As Integer = 0
+            Private X1ClickTimeStamp As Integer = 0
+            Private X2ClickTimeStamp As Integer = 0
 
             Private Function HookCallback(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
                 Dim Block As Boolean = False
@@ -556,6 +558,8 @@ Public NotInheritable Class InputHelper
                      wParam = NativeMethods.MouseMessage.WM_MBUTTONUP OrElse _
                      wParam = NativeMethods.MouseMessage.WM_RBUTTONDOWN OrElse _
                      wParam = NativeMethods.MouseMessage.WM_RBUTTONUP OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_XBUTTONDOWN OrElse _
+                     wParam = NativeMethods.MouseMessage.WM_XBUTTONUP OrElse _
                      wParam = NativeMethods.MouseMessage.WM_MOUSEWHEEL OrElse _
                      wParam = NativeMethods.MouseMessage.WM_MOUSEHWHEEL OrElse _
                      wParam = NativeMethods.MouseMessage.WM_MOUSEMOVE) Then
@@ -610,6 +614,27 @@ Public NotInheritable Class InputHelper
 
                         Case NativeMethods.MouseMessage.WM_RBUTTONUP
                             Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Right, KeyState.Up, False, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_XBUTTONDOWN
+                            Dim IsXButton2 As Boolean = (New NativeMethods.DWORD(MouseEventInfo.mouseData).High = 2)
+                            Dim DoubleClick As Boolean = (Environment.TickCount - If(IsXButton2, X2ClickTimeStamp, X1ClickTimeStamp)) <= NativeMethods.GetDoubleClickTime()
+
+                            If IsXButton2 = True Then X2ClickTimeStamp = Environment.TickCount _
+                                                 Else X1ClickTimeStamp = Environment.TickCount
+
+                            Dim HookEventArgs As New MouseHookEventArgs(If(IsXButton2, MouseButtons.XButton2, MouseButtons.XButton1), KeyState.Down, DoubleClick, _
+                                                                        New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                            RaiseEvent MouseUp(Me, HookEventArgs)
+                            Block = HookEventArgs.Block
+
+
+                        Case NativeMethods.MouseMessage.WM_XBUTTONUP
+                            Dim IsXButton2 As Boolean = (New NativeMethods.DWORD(MouseEventInfo.mouseData).High = 2)
+                            Dim HookEventArgs As New MouseHookEventArgs(If(IsXButton2, MouseButtons.XButton2, MouseButtons.XButton1), KeyState.Up, False, _
                                                                         New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
                             RaiseEvent MouseUp(Me, HookEventArgs)
                             Block = HookEventArgs.Block
@@ -741,7 +766,7 @@ Public NotInheritable Class InputHelper
             For Each Modifier As Keys In Modifiers
                 InputList.Add(Keyboard.GetKeyboardInputStructure(Modifier, KeyDown, HardwareKey))
             Next
-            InputList.Add(Keyboard.GetKeyboardInputStructure(Key, KeyDown, True))
+            InputList.Add(Keyboard.GetKeyboardInputStructure(Key, KeyDown, HardwareKey))
 
             NativeMethods.SendInput(CType(InputList.Count, UInteger), InputList.ToArray(), Marshal.SizeOf(GetType(NativeMethods.INPUT)))
         End Sub
@@ -1091,7 +1116,7 @@ Public NotInheritable Class InputHelper
         ''' <summary>
         ''' Checks whether a specific key is down in InputHelper's internal keyboard state (not related to the physical keyboard!).
         ''' </summary>
-        ''' <param name="Key"></param>
+        ''' <param name="Key">The key to check.</param>
         ''' <remarks></remarks>
         Public Shared Function IsKeyDown(ByVal Key As Keys) As Boolean
             If InputHelper.ExtractModifiers(Key).Length > 0 Then _
@@ -1131,7 +1156,8 @@ Public NotInheritable Class InputHelper
 
 #Region "SendMouseClick()"
         ''' <summary>
-        ''' Sends a Window Message-based mouse click to the window at the specified coordinates of the screen.
+        ''' Sends a Window Message-based mouse click to the window located at the specified coordinates of the screen. 
+        ''' The coordinates are automatically translated to client coordinates and the click occurs in that specific point of the window.
         ''' </summary>
         ''' <param name="Button">The button to press.</param>
         ''' <param name="Location">The position where to send the click (in screen coordinates).</param>
@@ -1142,7 +1168,8 @@ Public NotInheritable Class InputHelper
         End Sub
 
         ''' <summary>
-        ''' Sends a Window Message-based mouse click to the window at the specified coordinates of the screen.
+        ''' Sends a Window Message-based mouse click to the window located at the specified coordinates of the screen. 
+        ''' The coordinates are automatically translated to client coordinates and the click occurs in that specific point of the window.
         ''' </summary>
         ''' <param name="Button">The button to press.</param>
         ''' <param name="Location">The position where to send the click (in screen coordinates).</param>

@@ -14,7 +14,7 @@ Imports System.Runtime.InteropServices
 <Assembly: AssemblyDescription("A .NET friendly library for simulating mouse and keyboard input.")> 
 <Assembly: AssemblyCompany("My DOOM site")> 
 <Assembly: AssemblyProduct("InputHelper")> 
-<Assembly: AssemblyCopyright("Copyright © Vincent Bengtsson 2016-2017")> 
+<Assembly: AssemblyCopyright("Copyright © Vincent Bengtsson 2016-2018")> 
 <Assembly: AssemblyTrademark("")> 
 
 <Assembly: ComVisible(False)> 
