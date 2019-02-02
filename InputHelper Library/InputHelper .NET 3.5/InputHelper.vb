@@ -7,7 +7,7 @@
 '|                                                                                 |'
 '|                            === COPYRIGHT LICENSE ===                            |'
 '|                                                                                 |'
-'| Copyright (c) 2016-2018, Vincent Bengtsson                                      |'
+'| Copyright (c) 2016-2019, Vincent Bengtsson                                      |'
 '| All rights reserved.                                                            |'
 '|                                                                                 |'
 '| Redistribution and use in source and binary forms, with or without              |'
@@ -465,11 +465,142 @@ Public NotInheritable Class InputHelper
                 Return New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, If(KeyDown, KeyState.Down, KeyState.Up), Me.Modifiers)
             End Function
 
+            ''' <summary>
+            ''' Initializes a new instance of the KeyboardHook class.
+            ''' </summary>
+            ''' <remarks></remarks>
             Public Sub New()
                 hHook = NativeMethods.SetWindowsHookEx(NativeMethods.HookType.WH_KEYBOARD_LL, HookProcedureDelegate, NativeMethods.GetModuleHandle(Nothing), 0)
                 If hHook = IntPtr.Zero Then
                     Dim Win32Error As Integer = Marshal.GetLastWin32Error()
                     Throw New Win32Exception(Win32Error, "Failed to create keyboard hook! (" & Win32Error & ")")
+                End If
+            End Sub
+
+#Region "IDisposable Support"
+            Private disposedValue As Boolean ' To detect redundant calls
+
+            ' IDisposable
+            Protected Overridable Sub Dispose(disposing As Boolean)
+                If Not Me.disposedValue Then
+                    If disposing Then
+                        ' TODO: dispose managed state (managed objects).
+                    End If
+
+                    ' TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
+                    ' TODO: set large fields to null.
+                    If hHook <> IntPtr.Zero Then NativeMethods.UnhookWindowsHookEx(hHook)
+                End If
+                Me.disposedValue = True
+            End Sub
+
+            Protected Overrides Sub Finalize()
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(False)
+                MyBase.Finalize()
+            End Sub
+
+            ' This code added by Visual Basic to correctly implement the disposable pattern.
+            Public Sub Dispose() Implements IDisposable.Dispose
+                ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+                Dispose(True)
+                GC.SuppressFinalize(Me)
+            End Sub
+#End Region
+
+        End Class
+#End Region
+
+#Region "Local keyboard hook"
+        ''' <summary>
+        ''' A local keyboard hook that raises events when a key is pressed or released in a specific thread.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Class LocalKeyboardHook
+            Implements IDisposable
+
+            ''' <summary>
+            ''' Occurs when a key is pressed or held down.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event KeyDown As EventHandler(Of KeyboardHookEventArgs)
+
+            ''' <summary>
+            ''' Occurs when a key is released.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Event KeyUp As EventHandler(Of KeyboardHookEventArgs)
+
+            Private hHook As IntPtr = IntPtr.Zero
+            Private HookProcedureDelegate As New NativeMethods.KeyboardProc(AddressOf HookCallback)
+
+            Private Modifiers As ModifierKeys = ModifierKeys.None
+
+            Private Function HookCallback(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
+                Dim Block As Boolean = False
+
+                If nCode >= NativeMethods.HookCode.HC_ACTION Then
+                    Dim KeyCode As Keys = CType(wParam.ToInt32(), Keys)
+                    Dim KeyFlags As New NativeMethods.DWORD(lParam.ToInt64())
+                    Dim ScanCode As Byte = BitConverter.GetBytes(KeyFlags)(2) 'The scan code is the third byte in the integer (bits 16-23).
+                    Dim Extended As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_EXTENDED) = NativeMethods.KeyboardFlags.KF_EXTENDED
+                    Dim AltDown As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_ALTDOWN) = NativeMethods.KeyboardFlags.KF_ALTDOWN
+                    Dim KeyUp As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_UP) = NativeMethods.KeyboardFlags.KF_UP
+
+                    'Set the ALT modifier if the KF_ALTDOWN flag is set.
+                    If AltDown = True _
+                        AndAlso InputHelper.IsModifier(KeyCode, ModifierKeys.Alt) = False _
+                         AndAlso (Me.Modifiers And ModifierKeys.Alt) <> ModifierKeys.Alt Then
+
+                        Me.Modifiers = Me.Modifiers Or ModifierKeys.Alt
+                    End If
+
+                    'Raise KeyDown/KeyUp event.
+                    If KeyUp = False Then
+                        Dim HookEventArgs As New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, KeyState.Down, Me.Modifiers)
+
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Control) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Control
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Shift) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Shift
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Alt) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Alt
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Windows) = True Then Me.Modifiers = Me.Modifiers Or ModifierKeys.Windows
+
+                        RaiseEvent KeyDown(Me, HookEventArgs)
+                        Block = HookEventArgs.Block
+                    Else
+                        'Must be done before creating the HookEventArgs during KeyUp.
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Control) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Control
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Shift) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Shift
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Alt) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Alt
+                        If InputHelper.IsModifier(KeyCode, ModifierKeys.Windows) = True Then Me.Modifiers = Me.Modifiers And Not ModifierKeys.Windows
+
+                        Dim HookEventArgs As New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, KeyState.Up, Me.Modifiers)
+
+                        RaiseEvent KeyUp(Me, HookEventArgs)
+                        Block = HookEventArgs.Block
+                    End If
+                End If
+
+                Return If(Block, New IntPtr(1), NativeMethods.CallNextHookEx(hHook, nCode, wParam, lParam))
+            End Function
+
+            ''' <summary>
+            ''' Initializes a new instance of the LocalKeyboardHook class attached to the current thread.
+            ''' </summary>
+            ''' <remarks></remarks>
+            Public Sub New()
+                Me.New(NativeMethods.GetCurrentThreadId())
+            End Sub
+
+            ''' <summary>
+            ''' Initializes a new instance of the LocalKeyboardHook class attached to the specified thread.
+            ''' </summary>
+            ''' <param name="ThreadID">The thread to attach the hook to.</param>
+            ''' <remarks></remarks>
+            Public Sub New(ByVal ThreadID As UInteger)
+                hHook = NativeMethods.SetWindowsHookEx(NativeMethods.HookType.WH_KEYBOARD, HookProcedureDelegate, IntPtr.Zero, ThreadID)
+                If hHook = IntPtr.Zero Then
+                    Dim Win32Error As Integer = Marshal.GetLastWin32Error()
+                    Throw New Win32Exception(Win32Error, "Failed to create local keyboard hook! (" & Win32Error & ")")
                 End If
             End Sub
 
@@ -669,6 +800,10 @@ Public NotInheritable Class InputHelper
                 Return If(Block, New IntPtr(1), NativeMethods.CallNextHookEx(hHook, nCode, wParam, lParam))
             End Function
 
+            ''' <summary>
+            ''' Initializes a new instance of the MouseHook clas.
+            ''' </summary>
+            ''' <remarks></remarks>
             Public Sub New()
                 hHook = NativeMethods.SetWindowsHookEx(NativeMethods.HookType.WH_MOUSE_LL, HookProcedureDelegate, NativeMethods.GetModuleHandle(Nothing), 0)
                 If hHook = IntPtr.Zero Then
@@ -1563,11 +1698,16 @@ Public NotInheritable Class InputHelper
 #End Region
 
 #Region "WinAPI P/Invokes"
-    Private NotInheritable Class NativeMethods
+    ''' <summary>
+    ''' A class containing all the native WinAPI methods, structures, declarations, etc. used by InputHelper.
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public NotInheritable Class NativeMethods
         Private Sub New()
         End Sub
 
 #Region "Delegates"
+        Public Delegate Function KeyboardProc(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
         Public Delegate Function LowLevelKeyboardProc(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
         Public Delegate Function LowLevelMouseProc(ByVal nCode As Integer, ByVal wParam As IntPtr, ByVal lParam As IntPtr) As IntPtr
 #End Region
@@ -1575,6 +1715,10 @@ Public NotInheritable Class InputHelper
 #Region "Methods"
 
 #Region "Hook methods"
+        <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
+        Public Shared Function SetWindowsHookEx(ByVal idHook As HookType, ByVal lpfn As KeyboardProc, ByVal hMod As IntPtr, ByVal dwThreadId As UInteger) As IntPtr
+        End Function
+
         <DllImport("user32.dll", CharSet:=CharSet.Auto, SetLastError:=True)> _
         Public Shared Function SetWindowsHookEx(ByVal idHook As HookType, ByVal lpfn As LowLevelKeyboardProc, ByVal hMod As IntPtr, ByVal dwThreadId As UInteger) As IntPtr
         End Function
@@ -1691,6 +1835,15 @@ Public NotInheritable Class InputHelper
         Public Enum HookCode As Integer
             HC_ACTION = 0
             HC_NOREMOVE = 3
+        End Enum
+
+        Public Enum KeyboardFlags As UInteger
+            KF_EXTENDED = &H100
+            KF_DLGMODE = &H800
+            KF_MENUMODE = &H1000
+            KF_ALTDOWN = &H2000
+            KF_REPEAT = &H4000
+            KF_UP = &H8000
         End Enum
 
         Public Enum LowLevelKeyboardHookFlags As UInteger
@@ -1970,8 +2123,8 @@ Public NotInheritable Class InputHelper
             Public y As Integer
 
             Public Sub New(ByVal X As Integer, ByVal Y As Integer)
-                Me.X = X
-                Me.Y = Y
+                Me.x = X
+                Me.y = Y
             End Sub
         End Structure
 #End Region
