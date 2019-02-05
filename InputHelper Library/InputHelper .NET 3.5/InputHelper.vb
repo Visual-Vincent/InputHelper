@@ -541,11 +541,11 @@ Public NotInheritable Class InputHelper
 
                 If nCode >= NativeMethods.HookCode.HC_ACTION Then
                     Dim KeyCode As Keys = CType(wParam.ToInt32(), Keys)
-                    Dim KeyFlags As New NativeMethods.DWORD(lParam.ToInt64())
+                    Dim KeyFlags As New NativeMethods.QWORD(lParam.ToInt64())
                     Dim ScanCode As Byte = BitConverter.GetBytes(KeyFlags)(2) 'The scan code is the third byte in the integer (bits 16-23).
-                    Dim Extended As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_EXTENDED) = NativeMethods.KeyboardFlags.KF_EXTENDED
-                    Dim AltDown As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_ALTDOWN) = NativeMethods.KeyboardFlags.KF_ALTDOWN
-                    Dim KeyUp As Boolean = (KeyFlags.High And NativeMethods.KeyboardFlags.KF_UP) = NativeMethods.KeyboardFlags.KF_UP
+                    Dim Extended As Boolean = (KeyFlags.LowWord.High And NativeMethods.KeyboardFlags.KF_EXTENDED) = NativeMethods.KeyboardFlags.KF_EXTENDED
+                    Dim AltDown As Boolean = (KeyFlags.LowWord.High And NativeMethods.KeyboardFlags.KF_ALTDOWN) = NativeMethods.KeyboardFlags.KF_ALTDOWN
+                    Dim KeyUp As Boolean = (KeyFlags.LowWord.High And NativeMethods.KeyboardFlags.KF_UP) = NativeMethods.KeyboardFlags.KF_UP
 
                     'Set the ALT modifier if the KF_ALTDOWN flag is set.
                     If AltDown = True _
@@ -772,7 +772,7 @@ Public NotInheritable Class InputHelper
 
 
                         Case NativeMethods.MouseMessage.WM_MOUSEWHEEL
-                            Dim Delta As Integer = New NativeMethods.SignedDWORD(MouseEventInfo.mouseData).High
+                            Dim Delta As Integer = New NativeMethods.DWORD(MouseEventInfo.mouseData).SignedHigh
                             Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
                                                                         New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Vertical, Delta)
                             RaiseEvent MouseWheel(Me, HookEventArgs)
@@ -780,7 +780,7 @@ Public NotInheritable Class InputHelper
 
 
                         Case NativeMethods.MouseMessage.WM_MOUSEHWHEEL
-                            Dim Delta As Integer = New NativeMethods.SignedDWORD(MouseEventInfo.mouseData).High
+                            Dim Delta As Integer = New NativeMethods.DWORD(MouseEventInfo.mouseData).SignedHigh
                             Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
                                                                         New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Horizontal, Delta)
                             RaiseEvent MouseWheel(Me, HookEventArgs)
@@ -1333,11 +1333,11 @@ Public NotInheritable Class InputHelper
             End If
 
             Dim wParam As IntPtr = IntPtr.Zero 'Used to specify which X button was clicked (if any).
-            Dim lParam As IntPtr = New NativeMethods.DWORD(ClickPoint.x, ClickPoint.y) 'Click point.
+            Dim lParam As IntPtr = New NativeMethods.DWORD(CType(ClickPoint.x And Short.MaxValue, Short), CType(ClickPoint.y And Short.MaxValue, Short)) 'Click point.
 
             If Button = MouseButtons.XButton1 OrElse _
                 Button = MouseButtons.XButton2 Then
-                wParam = New NativeMethods.DWORD(0, Button / MouseButtons.XButton1) 'Set the correct XButton.
+                wParam = New NativeMethods.DWORD(0US, CType(Button / MouseButtons.XButton1, UShort)) 'Set the correct XButton.
             End If
 
             InputHelper.WindowMessages.SendMessage(hWnd, ButtonMessage, wParam, lParam, SendAsynchronously)
@@ -2040,45 +2040,78 @@ Public NotInheritable Class InputHelper
             <FieldOffset(0)> Public Low As UShort
             <FieldOffset(2)> Public High As UShort
 
+            <FieldOffset(0)> Public SignedValue As Integer
+            <FieldOffset(0)> Public SignedLow As Short
+            <FieldOffset(2)> Public SignedHigh As Short
+
             Public Shared Widening Operator CType(ByVal DWORD As DWORD) As IntPtr
-                Return New IntPtr(DWORD.Value And Integer.MaxValue)
+                Return New IntPtr(DWORD.SignedValue)
             End Operator
 
             Public Shared Widening Operator CType(ByVal DWORD As DWORD) As UInteger
                 Return DWORD.Value
             End Operator
 
+            Public Shared Widening Operator CType(ByVal DWORD As DWORD) As Integer
+                Return DWORD.SignedValue
+            End Operator
+
             Public Sub New(ByVal Value As UInteger)
                 Me.Value = Value
+            End Sub
+
+            Public Sub New(ByVal Value As Integer)
+                Me.SignedValue = Value
             End Sub
 
             Public Sub New(ByVal Low As UShort, ByVal High As UShort)
                 Me.Low = Low
                 Me.High = High
+            End Sub
+
+            Public Sub New(ByVal Low As Short, ByVal High As Short)
+                Me.SignedLow = Low
+                Me.SignedHigh = High
             End Sub
         End Structure
 
         <StructLayout(LayoutKind.Explicit)>
-        Public Structure SignedDWORD
-            <FieldOffset(0)> Public Value As UInteger
-            <FieldOffset(0)> Public Low As Short
-            <FieldOffset(2)> Public High As Short
+        Public Structure QWORD
+            <FieldOffset(0)> Public Value As ULong
+            <FieldOffset(0)> Public Low As UInteger
+            <FieldOffset(4)> Public High As UInteger
 
-            Public Shared Widening Operator CType(ByVal DWORD As SignedDWORD) As IntPtr
-                Return New IntPtr(DWORD.Value And Integer.MaxValue)
+            <FieldOffset(0)> Public SignedValue As Long
+            <FieldOffset(0)> Public SignedLow As Integer
+            <FieldOffset(4)> Public SignedHigh As Integer
+
+            <FieldOffset(0)> Public LowWord As DWORD
+            <FieldOffset(4)> Public HighWord As DWORD
+
+            Public Shared Widening Operator CType(ByVal QWORD As QWORD) As ULong
+                Return QWORD.Value
             End Operator
 
-            Public Shared Widening Operator CType(ByVal DWORD As SignedDWORD) As UInteger
-                Return DWORD.Value
+            Public Shared Widening Operator CType(ByVal QWORD As QWORD) As Long
+                Return QWORD.SignedValue
             End Operator
 
-            Public Sub New(ByVal Value As UInteger)
+            Public Sub New(ByVal Value As ULong)
                 Me.Value = Value
             End Sub
 
-            Public Sub New(ByVal Low As UShort, ByVal High As UShort)
+            Public Sub New(ByVal Value As Long)
+                Me.SignedValue = Value
+            End Sub
+
+            Public Sub New(ByVal Low As UInteger, ByVal High As UInteger)
                 Me.Low = Low
                 Me.High = High
+            End Sub
+
+            Public Sub New(ByVal Low As Integer, ByVal High As Integer)
+                Me.SignedLow = Low
+                Me.SignedHigh = High
             End Sub
         End Structure
 
