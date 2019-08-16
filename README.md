@@ -11,6 +11,4 @@ See "LICENSE.md" or "LICENSE.txt" in the project.
 See the project's [Wiki page](https://github.com/Visual-Vincent/InputHelper/wiki).
 
 # Questions, Feature requests, Bug reports, etc.
-Have any questions, need help with your code, want to report a bug or simply suggest a new feature?
-
-Please write a ticket on the [Issue tracker](https://github.com/Visual-Vincent/InputHelper/issues) and I'll get back to you as soon as I can!
+Have any questions, need help with your code, want to report a bug or simply suggest a new feature?<br/>Please write a ticket on the [Issue tracker](https://github.com/Visual-Vincent/InputHelper/issues) and I'll get back to you as soon as I can!
