@@ -9,7 +9,7 @@
     </SchemaVersion>
     <ProjectGuid>{98BAEFE8-002F-42B9-ADA2-F0E0B888499D}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>InputHelperLib</RootNamespace>
+    <RootNamespace>InputHelper</RootNamespace>
     <AssemblyName>InputHelper</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Windows</MyType>
@@ -66,7 +66,18 @@
     <Import Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="InputHelper.vb" />
+    <Compile Include="Constants.vb" />
+    <Compile Include="Enumerations.vb" />
+    <Compile Include="EventArgs\KeyboardHookEventArgs.vb" />
+    <Compile Include="EventArgs\MouseEventArgs.vb" />
+    <Compile Include="Hooks\Enumerations.vb" />
+    <Compile Include="Hooks\KeyboardHook.vb" />
+    <Compile Include="Hooks\LocalKeyboardHook.vb" />
+    <Compile Include="Hooks\MouseHook.vb" />
+    <Compile Include="Input Handling\Keyboard.vb" />
+    <Compile Include="Input Handling\Mouse.vb" />
+    <Compile Include="Input Handling\WindowMessages.vb" />
+    <Compile Include="Internal.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
@@ -82,6 +93,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="NativeMethods.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="My Project\Resources.resx">
@@ -107,6 +119,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
