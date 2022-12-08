@@ -2,16 +2,12 @@
 
   <PropertyGroup>
     <RootNamespace>InputHelper</RootNamespace>
-    <TargetFrameworks>net35;net40;netcoreapp3.1-windows;net5.0-windows;net6.0-windows</TargetFrameworks>
+    <TargetFrameworks>net35;net40;netcoreapp3.1-windows;net5.0-windows;net6.0-windows;net7.0-windows</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWindowsForms>true</UseWindowsForms>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>InputHelper.pfx</AssemblyOriginatorKeyFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Folder Include="My Project\" />
-  </ItemGroup>
 
 </Project>
