@@ -45,6 +45,8 @@ Namespace EventArgs
         Inherits System.EventArgs
 
         Private _extended As Boolean
+        Private _injected As Boolean
+        Private _injectedAtLowerIL As Boolean
         Private _keyCode As Keys
         Private _keyState As KeyState
         Private _modifiers As ModifierKeys
@@ -64,6 +66,26 @@ Namespace EventArgs
         Public ReadOnly Property Extended As Boolean
             Get
                 Return _extended
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Gets a boolean value indicating whether the keystroke was injected into the input stream by a process rather than an input device.
+        ''' </summary>
+        ''' <remarks>Always False for <see cref="LocalKeyboardHook"/>.</remarks>
+        Public ReadOnly Property Injected As Boolean
+            Get
+                Return _injected
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Gets a boolean value indicating whether the keystroke was injected into the input stream by another process running at lower integrity level.
+        ''' </summary>
+        ''' <remarks>Always False for <see cref="LocalKeyboardHook"/>.</remarks>
+        Public ReadOnly Property InjectedAtLowerIL As Boolean
+            Get
+                Return _injectedAtLowerIL
             End Get
         End Property
 
@@ -108,8 +130,8 @@ Namespace EventArgs
         End Property
 
         Public Overrides Function ToString() As String
-            Return String.Format("{{KeyCode: {0}, ScanCode: {1}, Extended: {2}, KeyState: {3}, Modifiers: {4}}}", _
-                                 Me.KeyCode, Me.ScanCode, Me.Extended, Me.KeyState, Me.Modifiers)
+            Return String.Format("{{KeyCode: {0}, ScanCode: {1}, Extended: {2}, KeyState: {3}, Modifiers: {4}, Injected: {5}, InjectedAtLowerIL: {6}}}", _
+                                 Me.KeyCode, Me.ScanCode, Me.Extended, Me.KeyState, Me.Modifiers, Me.Injected, Me.InjectedAtLowerIL)
         End Function
 
         ''' <summary>
@@ -132,6 +154,34 @@ Namespace EventArgs
             Me._extended = Extended
             Me._keyState = KeyState
             Me._modifiers = Modifiers
+        End Sub
+
+        ''' <summary>
+        ''' Initializes a new instance of the KeyboardHookEventArgs class.
+        ''' </summary>
+        ''' <param name="KeyCode">The keyboard code of the key that generated the keystroke.</param>
+        ''' <param name="ScanCode">The hardware scan code of the key that generated the keystroke.</param>
+        ''' <param name="Extended">Whether the keystroke message originated from one of the additional keys on the enhanced keyboard 
+        ''' (see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms646267(v=vs.85).aspx#_win32_Keystroke_Message_Flags). </param>
+        ''' <param name="KeyState">The current state of the key that generated the keystroke.</param>
+        ''' <param name="Modifiers">The modifier keys that was pressed in combination with the keystroke.</param>
+        ''' <param name="Injected">Whether the keystroke was injected into the input stream by a process rather than an input device.</param>
+        ''' <param name="InjectedAtLowerIL">Whether the keystroke was injected into the input stream by another process running at lower integrity level.</param>
+        ''' <remarks></remarks>
+        Public Sub New(ByVal KeyCode As Keys, _
+                       ByVal ScanCode As UInteger, _
+                       ByVal Extended As Boolean, _
+                       ByVal KeyState As KeyState, _
+                       ByVal Modifiers As ModifierKeys, _
+                       ByVal Injected As Boolean, _
+                       ByVal InjectedAtLowerIL As Boolean)
+            Me._keyCode = KeyCode
+            Me._scanCode = ScanCode
+            Me._extended = Extended
+            Me._keyState = KeyState
+            Me._modifiers = Modifiers
+            Me._injected = Injected
+            Me._injectedAtLowerIL = InjectedAtLowerIL
         End Sub
     End Class
 End Namespace

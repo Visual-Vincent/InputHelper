@@ -103,20 +103,23 @@ Namespace Hooks
                 Dim MouseEventInfo As NativeMethods.MSLLHOOKSTRUCT = _
                     CType(Marshal.PtrToStructure(lParam, GetType(NativeMethods.MSLLHOOKSTRUCT)), NativeMethods.MSLLHOOKSTRUCT)
 
+                Dim Injected As Boolean = (MouseEventInfo.flags And NativeMethods.LowLevelMouseHookFlags.LLMHF_INJECTED) = NativeMethods.LowLevelMouseHookFlags.LLMHF_INJECTED
+                Dim InjectedAtLowerIL As Boolean = (MouseEventInfo.flags And NativeMethods.LowLevelMouseHookFlags.LLMHF_LOWER_IL_INJECTED) = NativeMethods.LowLevelMouseHookFlags.LLMHF_LOWER_IL_INJECTED
+
                 Select Case wParam
                     Case NativeMethods.MouseMessage.WM_LBUTTONDOWN
                         Dim DoubleClick As Boolean = (Environment.TickCount - LeftClickTimeStamp) <= NativeMethods.GetDoubleClickTime()
                         LeftClickTimeStamp = Environment.TickCount
 
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Left, KeyState.Down, DoubleClick, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseDown(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
 
                     Case NativeMethods.MouseMessage.WM_LBUTTONUP
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Left, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseUp(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -126,14 +129,14 @@ Namespace Hooks
                         MiddleClickTimeStamp = Environment.TickCount
 
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Middle, KeyState.Down, DoubleClick, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseDown(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
 
                     Case NativeMethods.MouseMessage.WM_MBUTTONUP
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Middle, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseUp(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -143,14 +146,14 @@ Namespace Hooks
                         RightClickTimeStamp = Environment.TickCount
 
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Right, KeyState.Down, DoubleClick, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseDown(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
 
                     Case NativeMethods.MouseMessage.WM_RBUTTONUP
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.Right, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseUp(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -163,7 +166,7 @@ Namespace Hooks
                                              Else X1ClickTimeStamp = Environment.TickCount
 
                         Dim HookEventArgs As New MouseHookEventArgs(If(IsXButton2, MouseButtons.XButton2, MouseButtons.XButton1), KeyState.Down, DoubleClick, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseDown(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -171,7 +174,7 @@ Namespace Hooks
                     Case NativeMethods.MouseMessage.WM_XBUTTONUP
                         Dim IsXButton2 As Boolean = (New NativeMethods.DWORD(MouseEventInfo.mouseData).High = 2)
                         Dim HookEventArgs As New MouseHookEventArgs(If(IsXButton2, MouseButtons.XButton2, MouseButtons.XButton1), KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseUp(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -179,7 +182,7 @@ Namespace Hooks
                     Case NativeMethods.MouseMessage.WM_MOUSEWHEEL
                         Dim Delta As Integer = New NativeMethods.DWORD(MouseEventInfo.mouseData).SignedHigh
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Vertical, Delta)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Vertical, Delta, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseWheel(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
@@ -187,14 +190,14 @@ Namespace Hooks
                     Case NativeMethods.MouseMessage.WM_MOUSEHWHEEL
                         Dim Delta As Integer = New NativeMethods.DWORD(MouseEventInfo.mouseData).SignedHigh
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Horizontal, Delta)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.Horizontal, Delta, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseWheel(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 
 
                     Case NativeMethods.MouseMessage.WM_MOUSEMOVE
                         Dim HookEventArgs As New MouseHookEventArgs(MouseButtons.None, KeyState.Up, False, _
-                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0)
+                                                                    New Point(MouseEventInfo.pt.x, MouseEventInfo.pt.y), ScrollDirection.None, 0, Injected, InjectedAtLowerIL)
                         RaiseEvent MouseMove(Me, HookEventArgs)
                         Block = HookEventArgs.Block
 

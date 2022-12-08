@@ -117,6 +117,8 @@ Namespace Hooks
             Dim ScanCode As UInteger = KeystrokeInfo.scanCode
             Dim Extended As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_EXTENDED) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_EXTENDED
             Dim AltDown As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_ALTDOWN) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_ALTDOWN
+            Dim Injected As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_INJECTED) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_INJECTED
+            Dim InjectedAtLowerIL As Boolean = (KeystrokeInfo.flags And NativeMethods.LowLevelKeyboardHookFlags.LLKHF_LOWER_IL_INJECTED) = NativeMethods.LowLevelKeyboardHookFlags.LLKHF_LOWER_IL_INJECTED
 
             If AltDown = True _
                 AndAlso Internal.IsModifier(KeyCode, ModifierKeys.Alt) = False _
@@ -125,7 +127,7 @@ Namespace Hooks
                 Me.Modifiers = Me.Modifiers Or ModifierKeys.Alt
             End If
 
-            Return New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, If(KeyDown, KeyState.Down, KeyState.Up), Me.Modifiers)
+            Return New KeyboardHookEventArgs(KeyCode, ScanCode, Extended, If(KeyDown, KeyState.Down, KeyState.Up), Me.Modifiers, Injected, InjectedAtLowerIL)
         End Function
 
         ''' <summary>

@@ -49,6 +49,8 @@ Namespace EventArgs
         Private _buttonState As KeyState
         Private _delta As Integer
         Private _doubleClick As Boolean
+        Private _injected As Boolean
+        Private _injectedAtLowerIL As Boolean
         Private _location As Point
         Private _scrollDirection As ScrollDirection
 
@@ -99,6 +101,26 @@ Namespace EventArgs
         End Property
 
         ''' <summary>
+        ''' Gets a boolean value indicating whether the mouse event was injected into the input stream by a process rather than an input device.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public ReadOnly Property Injected As Boolean
+            Get
+                Return _injected
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Gets a boolean value indicating whether the mouse event was injected into the input stream by another process running at lower integrity level.
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public ReadOnly Property InjectedAtLowerIL As Boolean
+            Get
+                Return _injectedAtLowerIL
+            End Get
+        End Property
+
+        ''' <summary>
         ''' Gets the location of the mouse (in screen coordinates).
         ''' </summary>
         ''' <remarks></remarks>
@@ -119,8 +141,8 @@ Namespace EventArgs
         End Property
 
         Public Overrides Function ToString() As String
-            Return String.Format("{{Button: {0}, State: {1}, DoubleClick: {2}, Location: {3}, Scroll: {4}, Delta: {5}}}", _
-                                 Me.Button, Me.ButtonState, Me.DoubleClick, Me.Location, Me.ScrollDirection, Me.Delta)
+            Return String.Format("{{Button: {0}, State: {1}, DoubleClick: {2}, Location: {3}, Scroll: {4}, Delta: {5}, Injected: {6}, InjectedAtLowerIL: {7}}}", _
+                                 Me.Button, Me.ButtonState, Me.DoubleClick, Me.Location, Me.ScrollDirection, Me.Delta, Me.Injected, Me.InjectedAtLowerIL)
         End Function
 
         ''' <summary>
@@ -145,6 +167,36 @@ Namespace EventArgs
             Me._location = Location
             Me._scrollDirection = ScrollDirection
             Me._delta = Delta
+        End Sub
+
+        ''' <summary>
+        ''' Initializes a new instance of the MouseHookEventArgs class.
+        ''' </summary>
+        ''' <param name="Button">Which mouse button was pressed or released.</param>
+        ''' <param name="ButtonState">The current state of the button that generated the mouse event.</param>
+        ''' <param name="DoubleClick">Whether the event was caused by a double click.</param>
+        ''' <param name="Location">The location of the mouse (in screen coordinates).</param>
+        ''' <param name="ScrollDirection">Which direction the mouse wheel was scrolled in.</param>
+        ''' <param name="Delta">A signed count of the number of detents the mouse wheel has rotated.</param>
+        ''' <param name="Injected">Whether the mouse event was injected into the input stream by a process rather than an input device.</param>
+        ''' <param name="InjectedAtLowerIL">Whether the mouse event was injected into the input stream by another process running at lower integrity level.</param>
+        ''' <remarks></remarks>
+        Public Sub New(ByVal Button As MouseButtons, _
+                       ByVal ButtonState As KeyState, _
+                       ByVal DoubleClick As Boolean, _
+                       ByVal Location As Point, _
+                       ByVal ScrollDirection As ScrollDirection, _
+                       ByVal Delta As Integer, _
+                       ByVal Injected As Boolean, _
+                       ByVal InjectedAtLowerIL As Boolean)
+            Me._button = Button
+            Me._buttonState = ButtonState
+            Me._doubleClick = DoubleClick
+            Me._location = Location
+            Me._scrollDirection = ScrollDirection
+            Me._delta = Delta
+            Me._injected = Injected
+            Me._injectedAtLowerIL = InjectedAtLowerIL
         End Sub
     End Class
 End Namespace
