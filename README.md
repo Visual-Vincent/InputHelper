@@ -1,5 +1,5 @@
 # InputHelper
-[![License](https://img.shields.io/github/license/Visual-Vincent/InputHelper?style=plastic)](https://github.com/Visual-Vincent/InputHelper/blob/master/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/Visual-Vincent/InputHelper/total)](https://github.com/Visual-Vincent/InputHelper/releases) [![License](https://img.shields.io/github/license/Visual-Vincent/InputHelper)](https://github.com/Visual-Vincent/InputHelper/blob/master/LICENSE)
 
 A .NET friendly library for handling, simulating and intercepting mouse and keyboard input.
 
