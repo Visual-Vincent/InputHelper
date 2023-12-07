@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
     <RootNamespace>InputHelper</RootNamespace>
@@ -6,7 +6,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWindowsForms>true</UseWindowsForms>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>InputHelper.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>InputHelper.snk</AssemblyOriginatorKeyFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
