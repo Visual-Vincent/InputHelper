@@ -5,8 +5,8 @@ A .NET friendly library for handling, simulating and intercepting mouse and keyb
 
 ## Requirements
 - Windows 7 SP1 or newer (may work on XP/Vista as well, but this has not been tested)
-- .NET Framework: 3.5, 4.0-4.8, _or:_
-- .NET Core (Desktop Runtime): 3.1, 5.0, 6.0, 7.0
+- .NET Framework: 3.5 / 4.0-4.8, _or:_
+- .NET Core (Desktop Runtime): 3.1 / 5.0 / 6.0 / 7.0 / 8.0
 
 ## Precompiled download
 A precompiled version of the library (DLL) can be found in the [**Releases** section](https://github.com/Visual-Vincent/InputHelper/releases) of this repository.
